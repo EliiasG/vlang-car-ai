@@ -40,9 +40,13 @@ pub fn clampf(v f32, a f32, b f32) f32 {
 	} else if v > b {
 		return b
 	}
-	return a
+	return v
 }
 
 pub fn move_towards(value f32, target f32, amount f32) f32 {
 	return value + clampf(target - value, -amount, amount)
+}
+
+pub fn project(u vec.Vec2[f32], v vec.Vec2[f32]) vec.Vec2[f32] {
+	return v.mul_scalar(u.dot(v) / len_squared(v))
 }

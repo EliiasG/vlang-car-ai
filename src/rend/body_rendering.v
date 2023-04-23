@@ -33,7 +33,7 @@ pub fn (mut b RenderedBody) apply_force(force vec.Vec2[f32], pos vec.Vec2[f32]) 
 pub fn (b &RenderedBody) render(mut cxt gg.Context) {
 	// println(f.forces.len)
 	for force in b.forces {
-		draw_arrow(mut cxt, force.pos, force.pos + force.power.mul_scalar(100), gx.red)
+		draw_arrow(mut cxt, force.pos, force.pos + force.power.mul_scalar(5), gx.red)
 	}
 }
 

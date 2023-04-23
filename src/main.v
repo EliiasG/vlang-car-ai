@@ -8,6 +8,8 @@ import math.vec
 import rend
 import extmath
 import time
+import math
+import term
 
 const (
 	width     = 1280
@@ -19,7 +21,7 @@ const (
 struct State {
 mut:
 	ctx      &gg.Context
-	rb       rend.RenderedBody
+	car      car.Car
 	old_time i64
 }
 
@@ -34,13 +36,11 @@ fn main() {
 		frame_fn: frame
 		user_data: state
 	)
-	state.rb = rend.RenderedBody{
-		position: vec.vec2[f32](150, 150)
-		velocity: vec.vec2[f32](0, 0)
-		rotation: 0.0
-		angular_velocity: 0.0
-		mass: 15.0
+	mat := car.Material{
+		friction: 1
 	}
+	state.car = car.get_standard_car(vec.vec2[f32](width / 2, height / 2), math.pi_2 + 0.4,
+		mat)
 	state.old_time = get_time()
 	state.ctx.run()
 }
@@ -53,17 +53,25 @@ fn frame(mut state State) {
 	}
 	state.old_time = get_time()
 
-	// update rb
-	state.rb.move()
-
-	// apply forces
-	state.rb.apply_local_force(vec.vec2[f32](.1, 0), vec.vec2[f32](-17, 10))
-	state.rb.apply_local_force(vec.vec2[f32](.1, 0), vec.vec2[f32](-17, -10))
-	state.rb.apply_local_force(vec.vec2[f32](1, 1).normalize().mul_scalar(.1), vec.vec2[f32](17,
-		10))
-	state.rb.apply_local_force(vec.vec2[f32](1, 1).normalize().mul_scalar(.1), vec.vec2[f32](17,
-		-10))
-
+	thr := if state.ctx.pressed_keys['W'[0]] {
+		1
+	} else {
+		0
+	} - if state.ctx.pressed_keys['S'[0]] {
+		1
+	} else {
+		0
+	}
+	ang := (if state.ctx.pressed_keys['D'[0]] {
+		f32(1)
+	} else {
+		f32(0)
+	} - if state.ctx.pressed_keys['A'[0]] {
+		f32(1)
+	} else {
+		f32(0)
+	}) * f32(math.radians(30))
+	state.car.update(ang, thr)
 	draw(mut state)
 }
 
@@ -75,13 +83,20 @@ fn draw(mut state State) {
 		state.ctx.end()
 	}
 
+	// draw wheels
+	for wheel in state.car.wheels {
+		pos := state.car.to_global(wheel.local_pos)
+		dir := state.car.to_global_force(extmath.from_angle(wheel.get_angle())).mul_scalar(15)
+		rend.draw_arrow(mut state.ctx, pos, pos + dir, gx.green)
+	}
+
 	// draw forces
-	state.rb.render(mut state.ctx)
-	state.rb.clear()
+	// state.car.render(mut state.ctx)
+	state.car.clear()
 
 	// draw center
-	pos := state.rb.position
-	rend.draw_arrow(mut state.ctx, pos, pos + extmath.from_angle(state.rb.rotation).mul_scalar(15),
+	pos := state.car.position
+	rend.draw_arrow(mut state.ctx, pos, pos + extmath.from_angle(state.car.rotation).mul_scalar(15),
 		gx.black)
 }
 

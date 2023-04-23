@@ -6,24 +6,119 @@ import rend
 import extmath
 import math
 
+[heap]
 pub struct Material {
+pub:
 	friction f32
 }
 
 pub interface Wheel {
 	local_pos vec.Vec2[f32]
-	speed f32
 	powered bool
-	material Material
+	mass f32
+mut:
+	speed f32
+	material &Material
+}
+
+pub fn (mut w Wheel) set_material(m &Material) {
+	w.material = m
+}
+
+pub fn (w &Wheel) get_angle() f32 {
+	return if w is TurningWheel { w.angle } else { 0 }
+}
+
+fn (mut w Wheel) apply_acceleration(c &Car, throttle f32) {
+	// axle friction
+	w.speed -= extmath.clampf(w.speed, -c.passive_braking, c.passive_braking)
+	// braking
+	if throttle != 0 && math.sign(throttle) != math.sign(w.speed) {
+		w.speed = extmath.move_towards(w.speed, 0, c.brake_power)
+	}
+	// if we are moving or should move forwards
+	if w.speed > 0 || (w.speed == 0 && throttle > 0) {
+		// accelerate
+		if w.powered {
+			// target speed
+			tgt := c.max_speed * throttle
+			// remaining speed to reach target
+			diff := tgt - w.speed
+			// apply acceleration
+			w.speed += extmath.clampf(diff, 0, c.acceleration)
+		}
+	}
+	// if we are moving or should move backwards
+	if w.speed < 0 || (w.speed == 0 && throttle < 0) {
+		// accelerate
+		if w.powered {
+			// target speed
+			tgt := c.max_reverse_speed * throttle
+			// remaining speed to reach target
+			diff := tgt - w.speed
+			// apply acceleration
+			w.speed += extmath.clampf(diff, -c.acceleration, 0)
+		}
+	}
+}
+
+// mut to brake wheel
+fn (mut w Wheel) apply_forces(mut c Car) {
+	// local angle of wheel
+	l_ang := w.get_angle()
+	// local direction of wheel
+	l_dir := extmath.from_angle(l_ang)
+	// global angle of wheel
+	ang := c.rotation + l_ang
+	// turn angle into direction
+	dir := extmath.from_angle(ang)
+	// velocity at wheel
+	v := c.velocity_at(w.local_pos)
+
+	// amount of speed that is in wheels direction
+	spd := if v.is_approx_zero(0.001) {
+		f32(1)
+	} else {
+		p := extmath.project(dir, v)
+		extmath.rotated(p, -v.angle()).x
+	}
+
+	// slide friction
+
+	// the amount of friction to apply
+	mut fric := -c.slide_friction * w.material.friction
+	// the local friction force
+	fric_force := c.to_local_force(extmath.project(v, extmath.rotated(dir, math.pi_2)).mul_scalar(fric))
+	// apply the friction force in the right direction
+	if true {
+		c.apply_local_force(fric_force, w.local_pos)
+	} else {
+		c.apply_local_force(fric_force.mul_scalar(-1), w.local_pos)
+	}
+
+	// speed forces
+
+	// speed of the car relative to the wheel
+	car_relative_spd := spd * v.magnitude()
+	// difference between wheel speed and car speed
+	diff := w.speed - car_relative_spd
+
+	// amount of speed force to apply, may be negative if wheel is faster than ground
+	amt := diff * w.material.friction // f32(math.copysign(diff * diff, diff)) * w.material.friction
+	w.speed -= amt / w.mass
+
+	// apply speed force
+	c.apply_local_force(l_dir.mul_scalar(amt), w.local_pos)
 }
 
 pub struct BaseWheel {
 pub:
 	local_pos vec.Vec2[f32]
 	powered   bool
+	mass      f32
 pub mut:
 	speed    f32
-	material Material
+	material &Material
 }
 
 pub struct TurningWheel {
@@ -36,8 +131,13 @@ pub struct Car {
 	// maybe change
 	rend.RenderedBody
 pub:
-	turn_speed     f32
-	slide_friction f32
+	max_speed         f32
+	max_reverse_speed f32
+	acceleration      f32
+	brake_power       f32
+	passive_braking   f32
+	turn_speed        f32
+	slide_friction    f32
 pub mut:
 	wheels []Wheel
 }
@@ -47,41 +147,52 @@ pub fn (mut c Car) update(turn_angle f32, throttle f32) {
 		if mut wheel is TurningWheel {
 			wheel.angle = extmath.move_towards(wheel.angle, turn_angle, c.turn_speed)
 		}
-		wheel.apply_forces(mut c, throttle)
+		wheel.apply_forces(mut c)
+		wheel.apply_acceleration(c, throttle)
 	}
+	c.move()
 }
 
-pub fn (w &Wheel) apply_forces(mut c Car, throttle f32) {
-	w.apply_slide_friction(mut c, throttle)
-	// TODO more
-}
-
-fn (w &Wheel) apply_slide_friction(mut c Car, throttle f32) {
-	// local angle of wheel
-	l_ang := if w is TurningWheel { w.angle } else { 0 }
-	// global angle of wheel
-	ang := c.rotation + l_ang
-	// turn angle into direction
-	dir := extmath.from_angle(ang)
-	// amount of speed that is in wheels direction
-	spd := if c.velocity.is_approx_zero(0.001) {
-		1
-	} else {
-		dir.project(c.velocity).magnitude()
+pub fn get_standard_car(pos vec.Vec2[f32], rot f32, mat &Material) Car {
+	wheel_mass := 5
+	return Car{
+		max_speed: 50
+		max_reverse_speed: 20
+		acceleration: 2
+		brake_power: 100
+		passive_braking: .05
+		turn_speed: math.tau / 60 // 1 rps
+		slide_friction: 5
+		wheels: [
+			BaseWheel{
+				local_pos: vec.vec2[f32](-16, 10)
+				powered: true
+				mass: wheel_mass
+				material: mat
+			},
+			BaseWheel{
+				local_pos: vec.vec2[f32](-16, -10)
+				powered: true
+				mass: wheel_mass
+				material: mat
+			},
+			TurningWheel{
+				local_pos: vec.vec2[f32](16, 10)
+				powered: false
+				mass: wheel_mass
+				material: mat
+			},
+			TurningWheel{
+				local_pos: vec.vec2[f32](16, -10)
+				powered: false
+				mass: wheel_mass
+				material: mat
+			},
+		]
+		position: pos
+		velocity: vec.vec2[f32](0, 0)
+		rotation: rot
+		angular_velocity: 0.0
+		mass: 100
 	}
-
-	// the amount of friction to apply
-	fric := c.slide_friction * (1 - spd) * extmath.len_squared(c.velocity)
-	// the local friction force
-	fric_force := extmath.from_angle(l_ang + math.pi_2).mul_scalar(fric)
-
-	if dir.cross(c.velocity) > 0 {
-		c.apply_local_force(fric_force, w.local_pos)
-	} else {
-		c.apply_local_force(fric_force.mul_scalar(-1), w.local_pos)
-	}
-}
-
-pub fn get_standard_car() Car {
-	panic('not implemented')
 }
