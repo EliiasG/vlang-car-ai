@@ -88,10 +88,12 @@ fn draw(mut state State) {
 		pos := state.car.to_global(wheel.local_pos)
 		dir := state.car.to_global_force(extmath.from_angle(wheel.get_angle())).mul_scalar(15)
 		rend.draw_arrow(mut state.ctx, pos, pos + dir, gx.green)
+		rend.draw_arrow(mut state.ctx, pos, pos +
+			state.car.velocity_at(wheel.local_pos).mul_scalar(5), gx.yellow)
 	}
 
 	// draw forces
-	// state.car.render(mut state.ctx)
+	state.car.render(mut state.ctx)
 	state.car.clear()
 
 	// draw center

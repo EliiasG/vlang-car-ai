@@ -1,6 +1,5 @@
 module car
 
-import physics.bodies
 import math.vec
 import rend
 import extmath
@@ -88,13 +87,15 @@ fn (mut w Wheel) apply_forces(mut c Car) {
 	// the amount of friction to apply
 	mut fric := -c.slide_friction * w.material.friction
 	// the local friction force
-	fric_force := c.to_local_force(extmath.project(v, extmath.rotated(dir, math.pi_2)).mul_scalar(fric))
-	// apply the friction force in the right direction
-	if true {
-		c.apply_local_force(fric_force, w.local_pos)
-	} else {
-		c.apply_local_force(fric_force.mul_scalar(-1), w.local_pos)
+	mut fric_force := c.to_local_force(extmath.project(v, extmath.rotated(dir, math.pi_2)).mul_scalar(fric))
+	// clamp
+	if extmath.len_squared(fric_force) > extmath.len_squared(v) {
+		fric_force = fric_force.normalize().mul_scalar(v.magnitude())
+		// TODO UUUUUUH
 	}
+
+	// apply the friction force
+	c.apply_local_force(fric_force, w.local_pos)
 
 	// speed forces
 
@@ -154,36 +155,30 @@ pub fn (mut c Car) update(turn_angle f32, throttle f32) {
 }
 
 pub fn get_standard_car(pos vec.Vec2[f32], rot f32, mat &Material) Car {
-	wheel_mass := 5
+	wheel_mass := 2
 	return Car{
-		max_speed: 50
-		max_reverse_speed: 20
-		acceleration: 2
-		brake_power: 100
-		passive_braking: .05
-		turn_speed: math.tau / 60 // 1 rps
+		max_speed: 15
+		max_reverse_speed: 2
+		acceleration: 3
+		brake_power: 10
+		passive_braking: .15
+		turn_speed: math.tau / 200
 		slide_friction: 5
 		wheels: [
 			BaseWheel{
-				local_pos: vec.vec2[f32](-16, 10)
-				powered: true
-				mass: wheel_mass
-				material: mat
-			},
-			BaseWheel{
-				local_pos: vec.vec2[f32](-16, -10)
+				local_pos: vec.vec2[f32](-20, 0)
 				powered: true
 				mass: wheel_mass
 				material: mat
 			},
 			TurningWheel{
-				local_pos: vec.vec2[f32](16, 10)
+				local_pos: vec.vec2[f32](16, -8)
 				powered: false
 				mass: wheel_mass
 				material: mat
 			},
 			TurningWheel{
-				local_pos: vec.vec2[f32](16, -10)
+				local_pos: vec.vec2[f32](16, 8)
 				powered: false
 				mass: wheel_mass
 				material: mat
