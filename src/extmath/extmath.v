@@ -3,6 +3,8 @@ module extmath
 import math
 import math.vec
 
+const e = f32(math.e)
+
 pub fn atan(x f32) f32 {
 	// not ideal
 	return f32(math.atan(x))
@@ -69,4 +71,8 @@ pub fn is_in_triangle(p1 vec.Vec2[f32], p2 vec.Vec2[f32], p3 vec.Vec2[f32], p ve
 	b := ((p3.y - p1.y) * (p.x - p3.x) + (p1.x - p3.x) * (p.y - p3.y)) / den
 	c := 1 - a - b
 	return 0 <= a && a <= 1 && 0 <= b && b <= 1 && 0 <= c && c <= 1
+}
+
+pub fn sigmoid(v f32) f32 {
+	return 1 / (1 + math.powf(extmath.e, -v))
 }

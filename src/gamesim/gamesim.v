@@ -7,7 +7,7 @@ import extmath
 [noinit]
 pub struct GameSimulation {
 pub:
-	level level.Level
+	level &level.Level
 pub mut:
 	car             car.Car
 	done            bool

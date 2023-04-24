@@ -5,6 +5,7 @@ import rand
 import math
 import extmath
 
+[heap]
 pub struct Level {
 pub:
 	left_points  []vec.Vec2[f32]

@@ -11,6 +11,7 @@ import math
 import screen
 import level
 import gamesim
+import neuralnet
 
 const (
 	width     = 1280
@@ -35,7 +36,7 @@ fn main() {
 	c := car.get_standard_car(vec.vec2[f32](15, 0), 0, mat)
 	lvl := level.generate_default_random_level(50000)
 	sim := gamesim.new_simulation(lvl, c)
-	persp := rend.new_car_perspective(50, 8)
+	persp := rend.new_car_perspective(32, 12)
 
 	mut state := &State{
 		mat: mat
@@ -44,7 +45,6 @@ fn main() {
 	}
 	state.scr.cam.zoom = 1
 
-	// state.scr = &screen.Screen{}
 	state.scr.ctx = gg.new_context(
 		bg_color: gx.rgb(174, 198, 255)
 		create_window: true
@@ -115,7 +115,7 @@ fn draw(mut state State) {
 	rend.render_level(mut state.scr, state.sim.level)
 
 	// render perspective
-	rend.draw_car_perspective(mut state.scr, state.persp, 5)
+	rend.draw_car_perspective(mut state.scr, state.persp, 10)
 
 	// draw center
 	pos := state.sim.car.position
