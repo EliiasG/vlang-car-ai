@@ -15,7 +15,7 @@ pub fn draw_centered_line(mut scr screen.Screen, start vec.Vec2[f32], end vec.Ve
 	cfg := gg.PenConfig{
 		color: col
 		line_type: .solid
-		thickness: thickness
+		thickness: math.max(int(thickness / scr.cam.zoom), 1)
 	}
 	st := scr.cam.to_local(start)
 	en := scr.cam.to_local(end)

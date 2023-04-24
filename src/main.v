@@ -21,7 +21,9 @@ const (
 [heap]
 struct State {
 mut:
+	mat      car.Material
 	scr      screen.Screen
+	persp    rend.CarPerspective
 	sim      gamesim.GameSimulation
 	old_time i64
 }
@@ -33,10 +35,15 @@ fn main() {
 	c := car.get_standard_car(vec.vec2[f32](15, 0), 0, mat)
 	lvl := level.generate_default_random_level(50000)
 	sim := gamesim.new_simulation(lvl, c)
+	persp := rend.new_car_perspective(50, 8)
 
 	mut state := &State{
+		mat: mat
 		sim: sim
+		persp: persp
 	}
+	state.scr.cam.zoom = 1
+
 	// state.scr = &screen.Screen{}
 	state.scr.ctx = gg.new_context(
 		bg_color: gx.rgb(174, 198, 255)
@@ -47,6 +54,7 @@ fn main() {
 		frame_fn: frame
 		user_data: state
 	)
+
 	state.old_time = get_time()
 	state.scr.ctx.run()
 }
@@ -77,12 +85,20 @@ fn frame(mut state State) {
 	} else {
 		f32(0)
 	}) * f32(math.radians(30))
-	if !state.sim.done {
-		state.sim.car.update(ang, thr)
-		state.sim.update()
+
+	state.sim.car.update(ang, thr)
+	state.sim.update()
+	state.persp.plot_sim(state.sim)
+
+	if state.sim.done {
+		c := car.get_standard_car(vec.vec2[f32](15, 0), 0, state.mat)
+		state.sim = gamesim.new_simulation(state.sim.level, c)
 	}
 
-	println(state.sim.current_section)
+	// set camera position
+	state.scr.cam.position = state.sim.car.position - vec.vec2[f32](width / 2, height / 2)
+
+	// println(state.sim.current_section)
 
 	draw(mut state)
 }
@@ -98,26 +114,22 @@ fn draw(mut state State) {
 	// render level
 	rend.render_level(mut state.scr, state.sim.level)
 
-	// set camera position
-	state.scr.cam.position = state.sim.car.position - vec.vec2[f32](width / 2, height / 2)
-
-	// draw wheels
-	for wheel in state.sim.car.wheels {
-		pos := state.sim.car.to_global(wheel.local_pos)
-		dir := state.sim.car.to_global_force(extmath.from_angle(wheel.get_angle())).mul_scalar(15)
-		rend.draw_arrow(mut state.scr, pos, pos + dir, gx.green)
-		// rend.draw_arrow(mut state.ctx, pos, pos +
-		// state.car.velocity_at(wheel.local_pos).mul_scalar(5), gx.yellow)
-	}
-
-	// draw forces
-	// state.car.render(mut state.scr)
-	state.sim.car.clear()
+	// render perspective
+	rend.draw_car_perspective(mut state.scr, state.persp, 5)
 
 	// draw center
 	pos := state.sim.car.position
 	rend.draw_arrow(mut state.scr, pos, pos +
 		extmath.from_angle(state.sim.car.rotation).mul_scalar(15), gx.black)
+
+	// draw wheels
+	for wheel in state.sim.car.wheels {
+		wheel_pos := state.sim.car.to_global(wheel.local_pos)
+		dir := state.sim.car.to_global_force(extmath.from_angle(wheel.get_angle())).mul_scalar(15)
+		rend.draw_arrow(mut state.scr, wheel_pos, wheel_pos + dir, gx.green)
+		// rend.draw_arrow(mut state.ctx, pos, pos +
+		// state.car.velocity_at(wheel.local_pos).mul_scalar(5), gx.yellow)
+	}
 }
 
 fn get_time() i64 {

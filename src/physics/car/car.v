@@ -1,9 +1,9 @@
 module car
 
 import math.vec
-import rend
 import extmath
 import math
+import physics.bodies
 
 [heap]
 pub struct Material {
@@ -126,7 +126,7 @@ pub mut:
 
 pub struct Car {
 	// maybe change
-	rend.RenderedBody
+	bodies.RigidBody
 pub:
 	max_speed         f32
 	max_reverse_speed f32
