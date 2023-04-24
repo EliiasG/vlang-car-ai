@@ -2,14 +2,15 @@ module main
 
 import gg
 import gx
-import physics.bodies
 import physics.car
 import math.vec
 import rend
 import extmath
 import time
 import math
-import term
+import screen
+import level
+import gamesim
 
 const (
 	width     = 1280
@@ -20,14 +21,24 @@ const (
 [heap]
 struct State {
 mut:
-	ctx      &gg.Context
-	car      car.Car
+	scr      screen.Screen
+	sim      gamesim.GameSimulation
 	old_time i64
 }
 
 fn main() {
-	mut state := &State{}
-	state.ctx = gg.new_context(
+	mat := car.Material{
+		friction: 1
+	}
+	c := car.get_standard_car(vec.vec2[f32](15, 0), 0, mat)
+	lvl := level.generate_default_random_level(50000)
+	sim := gamesim.new_simulation(lvl, c)
+
+	mut state := &State{
+		sim: sim
+	}
+	// state.scr = &screen.Screen{}
+	state.scr.ctx = gg.new_context(
 		bg_color: gx.rgb(174, 198, 255)
 		create_window: true
 		width: width
@@ -36,13 +47,8 @@ fn main() {
 		frame_fn: frame
 		user_data: state
 	)
-	mat := car.Material{
-		friction: 1
-	}
-	state.car = car.get_standard_car(vec.vec2[f32](width / 2, height / 2), math.pi_2 + 0.4,
-		mat)
 	state.old_time = get_time()
-	state.ctx.run()
+	state.scr.ctx.run()
 }
 
 fn frame(mut state State) {
@@ -53,53 +59,65 @@ fn frame(mut state State) {
 	}
 	state.old_time = get_time()
 
-	thr := if state.ctx.pressed_keys['W'[0]] {
+	thr := if state.scr.ctx.pressed_keys['W'[0]] {
 		1
 	} else {
 		0
-	} - if state.ctx.pressed_keys['S'[0]] {
+	} - if state.scr.ctx.pressed_keys['S'[0]] {
 		1
 	} else {
 		0
 	}
-	ang := (if state.ctx.pressed_keys['D'[0]] {
+	ang := (if state.scr.ctx.pressed_keys['D'[0]] {
 		f32(1)
 	} else {
 		f32(0)
-	} - if state.ctx.pressed_keys['A'[0]] {
+	} - if state.scr.ctx.pressed_keys['A'[0]] {
 		f32(1)
 	} else {
 		f32(0)
 	}) * f32(math.radians(30))
-	state.car.update(ang, thr)
+	if !state.sim.done {
+		state.sim.car.update(ang, thr)
+		state.sim.update()
+	}
+
+	println(state.sim.current_section)
+
 	draw(mut state)
 }
 
 fn draw(mut state State) {
-	state.ctx.begin()
+	state.scr.ctx.begin()
 
 	// end no matter what
 	defer {
-		state.ctx.end()
+		state.scr.ctx.end()
 	}
 
+	// render level
+	rend.render_level(mut state.scr, state.sim.level)
+
+	// set camera position
+	state.scr.cam.position = state.sim.car.position - vec.vec2[f32](width / 2, height / 2)
+
 	// draw wheels
-	for wheel in state.car.wheels {
-		pos := state.car.to_global(wheel.local_pos)
-		dir := state.car.to_global_force(extmath.from_angle(wheel.get_angle())).mul_scalar(15)
-		rend.draw_arrow(mut state.ctx, pos, pos + dir, gx.green)
-		rend.draw_arrow(mut state.ctx, pos, pos +
-			state.car.velocity_at(wheel.local_pos).mul_scalar(5), gx.yellow)
+	for wheel in state.sim.car.wheels {
+		pos := state.sim.car.to_global(wheel.local_pos)
+		dir := state.sim.car.to_global_force(extmath.from_angle(wheel.get_angle())).mul_scalar(15)
+		rend.draw_arrow(mut state.scr, pos, pos + dir, gx.green)
+		// rend.draw_arrow(mut state.ctx, pos, pos +
+		// state.car.velocity_at(wheel.local_pos).mul_scalar(5), gx.yellow)
 	}
 
 	// draw forces
-	state.car.render(mut state.ctx)
-	state.car.clear()
+	// state.car.render(mut state.scr)
+	state.sim.car.clear()
 
 	// draw center
-	pos := state.car.position
-	rend.draw_arrow(mut state.ctx, pos, pos + extmath.from_angle(state.car.rotation).mul_scalar(15),
-		gx.black)
+	pos := state.sim.car.position
+	rend.draw_arrow(mut state.scr, pos, pos +
+		extmath.from_angle(state.sim.car.rotation).mul_scalar(15), gx.black)
 }
 
 fn get_time() i64 {

@@ -36,6 +36,9 @@ pub fn (b &RigidBody) to_local(v vec.Vec2[f32]) vec.Vec2[f32] {
 
 pub fn (mut b RigidBody) move() {
 	b.velocity = b.new_velocity
+	if math.sign(b.angular_velocity) != math.sign(b.new_angular_velocity) && b.angular_velocity != 0 {
+		b.new_angular_velocity = 0
+	}
 	b.angular_velocity = b.new_angular_velocity
 	b.position += b.velocity
 	b.rotation += b.angular_velocity

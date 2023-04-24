@@ -1,9 +1,9 @@
 module rend
 
-import gg
 import math.vec
 import gx
 import physics.bodies
+import screen
 
 pub struct Force {
 	pos   vec.Vec2[f32]
@@ -29,10 +29,10 @@ pub fn (mut b RenderedBody) apply_force(force vec.Vec2[f32], pos vec.Vec2[f32]) 
 	b.RigidBody.apply_force(force, pos)
 }
 
-pub fn (b &RenderedBody) render(mut cxt gg.Context) {
+pub fn (b &RenderedBody) render(mut scr screen.Screen) {
 	// println(f.forces.len)
 	for force in b.forces {
-		draw_arrow(mut cxt, force.pos, force.pos + force.power.mul_scalar(2), gx.red)
+		draw_arrow(mut scr, force.pos, force.pos + force.power.mul_scalar(2), gx.red)
 	}
 }
 

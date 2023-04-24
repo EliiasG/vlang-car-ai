@@ -87,15 +87,11 @@ fn (mut w Wheel) apply_forces(mut c Car) {
 	// the amount of friction to apply
 	mut fric := -c.slide_friction * w.material.friction
 	// the local friction force
-	mut fric_force := c.to_local_force(extmath.project(v, extmath.rotated(dir, math.pi_2)).mul_scalar(fric))
-	// clamp
-	if extmath.len_squared(fric_force) > extmath.len_squared(v) {
-		fric_force = fric_force.normalize().mul_scalar(v.magnitude())
-		// TODO UUUUUUH
-	}
+	fric_force := c.to_local_force(extmath.project(v, extmath.rotated(dir, math.pi_2)).mul_scalar(fric))
 
 	// apply the friction force
-	c.apply_local_force(fric_force, w.local_pos)
+	c.apply_local_force(fric_force.normalize().mul_scalar[f32](f32(math.pow(fric_force.magnitude(),
+		0.6))), w.local_pos)
 
 	// speed forces
 
@@ -155,18 +151,24 @@ pub fn (mut c Car) update(turn_angle f32, throttle f32) {
 }
 
 pub fn get_standard_car(pos vec.Vec2[f32], rot f32, mat &Material) Car {
-	wheel_mass := 2
+	wheel_mass := 20
 	return Car{
-		max_speed: 15
+		max_speed: 30
 		max_reverse_speed: 2
-		acceleration: 3
-		brake_power: 10
+		acceleration: 2
+		brake_power: 1
 		passive_braking: .15
 		turn_speed: math.tau / 200
-		slide_friction: 5
+		slide_friction: 10
 		wheels: [
 			BaseWheel{
-				local_pos: vec.vec2[f32](-20, 0)
+				local_pos: vec.vec2[f32](-20, 8)
+				powered: true
+				mass: wheel_mass
+				material: mat
+			},
+			BaseWheel{
+				local_pos: vec.vec2[f32](-20, -8)
 				powered: true
 				mass: wheel_mass
 				material: mat

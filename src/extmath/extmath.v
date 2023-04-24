@@ -50,3 +50,23 @@ pub fn move_towards(value f32, target f32, amount f32) f32 {
 pub fn project(u vec.Vec2[f32], v vec.Vec2[f32]) vec.Vec2[f32] {
 	return v.mul_scalar(u.dot(v) / len_squared(v))
 }
+
+/*
+from http://totologic.blogspot.com/2014/01/accurate-point-in-triangle-test.html
+function pointInTriangle(x1, y1, x2, y2, x3, y3, x, y:Number):Boolean
+{
+ var denominator:Number = ((y2 - y3)*(x1 - x3) + (x3 - x2)*(y1 - y3));
+ var a:Number = ((y2 - y3)*(x - x3) + (x3 - x2)*(y - y3)) / denominator;
+ var b:Number = ((y3 - y1)*(x - x3) + (x1 - x3)*(y - y3)) / denominator;
+ var c:Number = 1 - a - b;
+
+ return 0 <= a && a <= 1 && 0 <= b && b <= 1 && 0 <= c && c <= 1;
+}
+*/
+pub fn is_in_triangle(p1 vec.Vec2[f32], p2 vec.Vec2[f32], p3 vec.Vec2[f32], p vec.Vec2[f32]) bool {
+	den := (p2.y - p3.y) * (p1.x - p3.x) + (p3.x - p2.x) * (p1.y - p3.y)
+	a := ((p2.y - p3.y) * (p.x - p3.x) + (p3.x - p2.x) * (p.y - p3.y)) / den
+	b := ((p3.y - p1.y) * (p.x - p3.x) + (p1.x - p3.x) * (p.y - p3.y)) / den
+	c := 1 - a - b
+	return 0 <= a && a <= 1 && 0 <= b && b <= 1 && 0 <= c && c <= 1
+}
