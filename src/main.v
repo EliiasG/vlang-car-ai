@@ -2,16 +2,12 @@ module main
 
 import gg
 import gx
-import physics.car
 import math.vec
 import rend
-import extmath
 import time
-import math
 import screen
-import level
 import gamesim
-import neuralnet
+import evolution
 
 const (
 	width     = 1280
@@ -22,26 +18,16 @@ const (
 [heap]
 struct State {
 mut:
-	mat      car.Material
-	scr      screen.Screen
-	persp    rend.CarPerspective
-	sim      gamesim.GameSimulation
-	old_time i64
+	scr       screen.Screen
+	sim       evolution.EvolutionSimulator
+	old_time  i64
+	old_space bool
+	fast      bool
 }
 
 fn main() {
-	mat := car.Material{
-		friction: 1
-	}
-	c := car.get_standard_car(vec.vec2[f32](15, 0), 0, mat)
-	lvl := level.generate_default_random_level(50000)
-	sim := gamesim.new_simulation(lvl, c)
-	persp := rend.new_car_perspective(32, 12)
-
 	mut state := &State{
-		mat: mat
-		sim: sim
-		persp: persp
+		sim: evolution.new_evolution_sim()
 	}
 	state.scr.cam.zoom = 1
 
@@ -66,44 +52,34 @@ fn frame(mut state State) {
 		now = get_time()
 	}
 	state.old_time = get_time()
-
-	thr := if state.scr.ctx.pressed_keys['W'[0]] {
-		1
-	} else {
-		0
-	} - if state.scr.ctx.pressed_keys['S'[0]] {
-		1
-	} else {
-		0
+	space := state.scr.ctx.pressed_keys[' '[0]]
+	if space && !state.old_space {
+		state.fast = !state.fast
 	}
-	ang := (if state.scr.ctx.pressed_keys['D'[0]] {
-		f32(1)
+	state.old_space = space
+	amt := if state.fast {
+		10
 	} else {
-		f32(0)
-	} - if state.scr.ctx.pressed_keys['A'[0]] {
-		f32(1)
-	} else {
-		f32(0)
-	}) * f32(math.radians(30))
-
-	state.sim.car.update(ang, thr)
-	state.sim.update()
-	state.persp.plot_sim(state.sim)
-
-	if state.sim.done {
-		c := car.get_standard_car(vec.vec2[f32](15, 0), 0, state.mat)
-		state.sim = gamesim.new_simulation(state.sim.level, c)
+		1
 	}
-
-	// set camera position
-	state.scr.cam.position = state.sim.car.position - vec.vec2[f32](width / 2, height / 2)
-
-	// println(state.sim.current_section)
-
+	for _ in 0 .. amt {
+		state.sim.update()
+	}
 	draw(mut state)
 }
 
 fn draw(mut state State) {
+	// move camera
+
+	// find best car
+	mut best := state.sim.sims[0]
+	for sim in state.sim.sims {
+		if sim.gamesim.car.position.x > best.gamesim.car.position.x {
+			best = sim
+		}
+	}
+	// set camera pos
+	state.scr.cam.position = best.gamesim.car.position - vec.vec2[f32](width / 2, height / 2)
 	state.scr.ctx.begin()
 
 	// end no matter what
@@ -111,25 +87,17 @@ fn draw(mut state State) {
 		state.scr.ctx.end()
 	}
 
-	// render level
-	rend.render_level(mut state.scr, state.sim.level)
-
-	// render perspective
-	rend.draw_car_perspective(mut state.scr, state.persp, 10)
-
-	// draw center
-	pos := state.sim.car.position
-	rend.draw_arrow(mut state.scr, pos, pos +
-		extmath.from_angle(state.sim.car.rotation).mul_scalar(15), gx.black)
-
-	// draw wheels
-	for wheel in state.sim.car.wheels {
-		wheel_pos := state.sim.car.to_global(wheel.local_pos)
-		dir := state.sim.car.to_global_force(extmath.from_angle(wheel.get_angle())).mul_scalar(15)
-		rend.draw_arrow(mut state.scr, wheel_pos, wheel_pos + dir, gx.green)
-		// rend.draw_arrow(mut state.ctx, pos, pos +
-		// state.car.velocity_at(wheel.local_pos).mul_scalar(5), gx.yellow)
+	// draw evolution number
+	cfg := gx.TextCfg{
+		color: gx.white
+		size: 32
+		bold: true
 	}
+	state.scr.ctx.draw_text(32 * 5, 0, 'Generation ${state.sim.generation}', cfg)
+	// draw perspective
+	rend.draw_car_perspective(mut state.scr, best.persp, 5)
+	// draw sim
+	rend.draw_evolution_sim(mut state.scr, state.sim)
 }
 
 fn get_time() i64 {

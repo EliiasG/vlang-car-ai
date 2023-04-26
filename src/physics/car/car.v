@@ -134,15 +134,16 @@ pub:
 	brake_power       f32
 	passive_braking   f32
 	turn_speed        f32
+	turn_angle        f32
 	slide_friction    f32
 pub mut:
 	wheels []Wheel
 }
 
-pub fn (mut c Car) update(turn_angle f32, throttle f32) {
+pub fn (mut c Car) update(turn f32, throttle f32) {
 	for mut wheel in c.wheels {
 		if mut wheel is TurningWheel {
-			wheel.angle = extmath.move_towards(wheel.angle, turn_angle, c.turn_speed)
+			wheel.angle = extmath.move_towards(wheel.angle, c.turn_angle * turn, c.turn_speed)
 		}
 		wheel.apply_forces(mut c)
 		wheel.apply_acceleration(c, throttle)
@@ -159,6 +160,7 @@ pub fn get_standard_car(pos vec.Vec2[f32], rot f32, mat &Material) Car {
 		brake_power: 1
 		passive_braking: .15
 		turn_speed: math.tau / 200
+		turn_angle: f32(math.radians(30))
 		slide_friction: 10
 		wheels: [
 			BaseWheel{
