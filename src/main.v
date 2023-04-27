@@ -6,7 +6,6 @@ import math.vec
 import rend
 import time
 import screen
-import gamesim
 import evolution
 
 const (
@@ -22,7 +21,7 @@ mut:
 	sim       evolution.EvolutionSimulator
 	old_time  i64
 	old_space bool
-	fast      bool
+	fast      bool = true
 }
 
 fn main() {
@@ -94,10 +93,10 @@ fn draw(mut state State) {
 		bold: true
 	}
 	state.scr.ctx.draw_text(32 * 5, 0, 'Generation ${state.sim.generation}', cfg)
-	// draw perspective
-	rend.draw_car_perspective(mut state.scr, best.persp, 5)
 	// draw sim
 	rend.draw_evolution_sim(mut state.scr, state.sim)
+	// draw perspective
+	rend.draw_car_perspective(mut state.scr, best.persp, 5)
 }
 
 fn get_time() i64 {

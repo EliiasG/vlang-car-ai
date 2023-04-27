@@ -18,7 +18,7 @@ const (
 		48,
 		4,
 	]
-	frame_amount        = 60 * 8
+	frame_amount        = 60 * 40
 	level_length        = frame_amount * car.get_standard_car(vec.vec2[f32](0, 0), 0,
 		mat).max_speed
 	parent_count        = 8
@@ -53,6 +53,7 @@ pub fn new_evolution_sim() EvolutionSimulator {
 	mut sim := EvolutionSimulator{
 		sims: []NeuralSimulator{cap: evolution.sim_amount}
 	}
+
 	for _ in 0 .. sim.sims.cap {
 		sim.sims << new_sim()
 	}
@@ -88,11 +89,15 @@ pub fn (mut e EvolutionSimulator) update() {
 		// find survivors / parents for next generation
 		state := e.find_parents()
 		// save
-		println('saving')
-		spawn fn [state] () {
-			os.write_file(evolution.save_path, json.encode(state)) or { println('could not save') }
-			println('saved')
-		}()
+		if e.generation % 10 == 0 {
+			println('saving')
+			spawn fn [state] () {
+				os.write_file(evolution.save_path, json.encode(state)) or {
+					println('could not save')
+				}
+				println('saved')
+			}()
+		}
 		e.evolve(state)
 		e.frame = 0
 	}
@@ -115,7 +120,18 @@ pub fn (mut e EvolutionSimulator) evolve(state &ParentState) {
 pub fn (mut e EvolutionSimulator) find_parents() ParentState {
 	mut networks := []neuralnet.NeuralNetwork{len: evolution.parent_count, init: new_net()}
 	// sort sims by who made it furthest
-	e.sims.sort(b.gamesim.current_section < a.gamesim.current_section)
+	e.sims.sort_with_compare(fn (a &NeuralSimulator, b &NeuralSimulator) int {
+		s1 := get_score(a.gamesim)
+		s2 := get_score(b.gamesim)
+		if s2 > s1 {
+			return 1
+		}
+		if s1 > s2 {
+			return -1
+		}
+		return 0
+	})
+	println(e.sims[0].gamesim.current_section)
 	for i, mut net in networks {
 		net.copy_data(e.sims[i].network)
 	}
@@ -123,6 +139,16 @@ pub fn (mut e EvolutionSimulator) find_parents() ParentState {
 	return ParentState{
 		generation: e.generation
 		networks: networks
+	}
+}
+
+[inline]
+fn get_score(sim gamesim.GameSimulation) int {
+	// divide score if dead
+	return if sim.done {
+		sim.current_section / 5
+	} else {
+		sim.current_section
 	}
 }
 
@@ -170,7 +196,7 @@ fn (mut n NeuralSimulator) update() bool {
 	// draw perspective
 	n.persp.plot_sim(n.gamesim)
 	// evaluate network
-	thr, steer := evaluate_perspective(n.network, n.persp)
+	thr, steer := evaluate_sim(n)
 	// update sim
 	n.gamesim.car.update(steer, thr)
 	n.gamesim.update()
@@ -182,12 +208,15 @@ fn get_value(p &persp.CarPerspective, i int) f32 {
 	return if p.pixels[i % p.pixels.len][i / p.pixels.len] { 1 } else { 0 }
 }
 
-pub fn evaluate_perspective(n &neuralnet.NeuralNetwork, p &persp.CarPerspective) (f32, f32) {
+pub fn evaluate_sim(sim &NeuralSimulator) (f32, f32) {
+	per := sim.persp
 	// input to network
-	inp := []f32{len: p.pixels.len * p.pixels.len, init: get_value(p, index)}
-	// result
+	mut inp := []f32{len: per.pixels.len * per.pixels.len, init: get_value(per, index)}
+	// cheat to also give network velocity, done to not make retraining required
+	inp[inp.len - 1] = sim.gamesim.car.velocity.magnitude() / sim.gamesim.car.max_speed
 
-	res := n.evaluate(inp)
+	// result
+	res := sim.network.evaluate(inp)
 	// check
 	if res.len != 4 {
 		panic('invalid network')
