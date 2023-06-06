@@ -21,7 +21,7 @@ mut:
 	sim       evolution.EvolutionSimulator
 	old_time  i64
 	old_space bool
-	fast      bool = true
+	fast      bool
 }
 
 fn main() {
@@ -41,6 +41,10 @@ fn main() {
 	)
 
 	state.old_time = get_time()
+	for _ in 0 .. 60 {
+		state.sim.update()
+	}
+	println(get_time() - state.old_time)
 	state.scr.ctx.run()
 }
 

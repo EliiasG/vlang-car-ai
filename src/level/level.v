@@ -57,7 +57,7 @@ pub fn generate_random_level(seg_len f32, seg_rot f32, width f32, seg_amt int) L
 pub fn generate_default_random_level(len f32) Level {
 	// settings for default level
 	seg_len := f32(50)
-	seg_rot := f32(math.radians(8))
+	seg_rot := f32(math.radians(3))
 	width := f32(50)
 
 	return generate_random_level(seg_len, seg_rot, width, int(math.ceil(len / seg_len)))

@@ -16,7 +16,7 @@ pub mut:
 pub fn (mut c CarPerspective) plot_sim(sim &gamesim.GameSimulation) {
 	c.clear()
 
-	for i in -int(math.ceil(c.zoom / 2)) .. int(math.ceil(c.zoom * 5)) {
+	for i in -5 .. 10 {
 		sec := sim.current_section + i
 
 		if sec < 0 || sec >= sim.level.left_points.len {

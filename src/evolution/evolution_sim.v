@@ -11,6 +11,7 @@ import persp
 import net
 
 const (
+	thread_count        = 16
 	save_path           = 'save.json'
 	view_size           = 32
 	view_zoom           = f32(12)
@@ -18,14 +19,14 @@ const (
 		48,
 		4,
 	]
-	frame_amount        = 60 * 40
+	frame_amount        = 60 * 8
 	level_length        = frame_amount * car.get_standard_car(vec.vec2[f32](0, 0), 0,
 		mat).max_speed
 	parent_count        = 8
 	child_count         = 16
-	evolution_amount    = 4
+	evolution_amount    = 2
 	sim_amount          = parent_count * child_count + parent_count
-	evolution_magnitude = f32(.5)
+	evolution_magnitude = f32(.25)
 	init_amount         = 32
 	init_magnitude      = f32(1)
 	mat                 = car.Material{
@@ -153,15 +154,26 @@ fn get_score(sim gamesim.GameSimulation) int {
 }
 
 fn (mut e EvolutionSimulator) update_sims() {
-	// start updating sims
-	mut threads := []thread bool{len: e.sims.len, init: spawn (&e.sims[index]).update()}
-	// wait for sims to update
-	if threads.wait().all(fn (it bool) bool {
-		return it
-	})
-	{
-		e.frame = evolution.frame_amount - 1
+	// amount of sims per thread
+	amt := e.sims.len / evolution.thread_count
+	// thread list
+	mut threads := []thread{cap: e.sims.len}
+	for i in 0 .. amt {
+		// update sims
+		threads << spawn fn [i, e] () {
+			start := i * evolution.thread_count
+			for mut sim in e.sims[start..start + evolution.thread_count] {
+				sim.update()
+			}
+		}()
 	}
+	// update remaining
+	threads << spawn fn [e, amt] () {
+		for mut sim in e.sims[amt * evolution.thread_count..] {
+			sim.update()
+		}
+	}()
+	threads.wait()
 }
 
 [heap]
